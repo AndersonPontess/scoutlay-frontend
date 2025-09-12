@@ -1,133 +1,109 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useEffect, useState } from "react";
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_BASE;
 
-function StrategyBadge({ strat }){
-  const color = strat.code && strat.code.startsWith('UNDER') ? '#ff9800' : '#1a73e8';
-  return (
-    <div style={{ background: color + '20', color, padding: '6px 10px', borderRadius: 6, display: 'inline-block', marginRight:8 }}>
-      {strat.label}
-    </div>
-  );
-}
-
-function MatchDetails({ match }){
-  const [homeStats, setHomeStats] = useState(null);
-  const [awayStats, setAwayStats] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(()=>{
-    let mounted = true;
-    async function load(){
-      setLoading(true);
-      try{
-        const [h, a] = await Promise.all([
-          axios.get(`${API_BASE}/stats/${match.homeTeam.id}`),
-          axios.get(`${API_BASE}/stats/${match.awayTeam.id}`)
-        ]);
-        if(!mounted) return;
-        setHomeStats(h.data);
-        setAwayStats(a.data);
-      }catch(e){ console.error('stats load error', e); }
-      finally{ setLoading(false); }
-    }
-    load();
-    return ()=> mounted = false;
-  }, [match]);
-
-  return (
-    <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid #eee' }}>
-      <h4>📊 Estatísticas</h4>
-      {loading && <div>Carregando estatísticas...</div>}
-      {!loading && homeStats && awayStats && (
-        <div style={{ display:'flex', gap:20 }}>
-          <div style={{ flex:1 }}>
-            <h5>{match.homeTeam.name}</h5>
-            <div>Últimos 5 (avg gols): {homeStats.last5.avgGoalsFor.toFixed(2)}</div>
-            <div>Últimos 10 (avg gols): {homeStats.last10.avgGoalsFor.toFixed(2)}</div>
-            <div>Temporada (avg gols): {homeStats.temporada.avgGoalsFor.toFixed(2)}</div>
-          </div>
-          <div style={{ flex:1 }}>
-            <h5>{match.awayTeam.name}</h5>
-            <div>Últimos 5 (avg gols): {awayStats.last5.avgGoalsFor.toFixed(2)}</div>
-            <div>Últimos 10 (avg gols): {awayStats.last10.avgGoalsFor.toFixed(2)}</div>
-            <div>Temporada (avg gols): {awayStats.temporada.avgGoalsFor.toFixed(2)}</div>
-          </div>
-        </div>
-      )}
-
-      <h4 style={{ marginTop:12 }}>🎯 Possíveis entradas</h4>
-      {match.estrategias && match.estrategias.length>0 ? (
-        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          {match.estrategias.map((s, idx) => <StrategyBadge strat={s} key={idx} />)}
-        </div>
-      ) : <div>Nenhuma sugestão no momento.</div>}
-    </div>
-  );
-}
-
-export default function App(){
+export default function App() {
   const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('ALL');
+  const [filter, setFilter] = useState("ALL");
   const [expanded, setExpanded] = useState(null);
 
-  useEffect(()=>{
-    let mounted = true;
-    async function load(){
-      setLoading(true);
-      try{
-        const res = await axios.get(`${API_BASE}/matches`);
-        if(!mounted) return;
-        setMatches(res.data.matches || []);
-      }catch(e){ console.error(e); }
-      finally{ setLoading(false); }
-    }
-    load();
-    const it = setInterval(load, 60000);
-    return ()=> { mounted = false; clearInterval(it); }
-  },[]);
+  useEffect(() => {
+    fetchMatches();
+    const interval = setInterval(fetchMatches, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const filtered = matches.filter(m=>{
-    if(filter==='LIVE') return m.status==='LIVE';
-    if(filter==='SCHEDULED') return m.status==='SCHEDULED';
-    if(filter==='WITH_STRATEGY') return (m.estrategias && m.estrategias.length>0);
+  async function fetchMatches() {
+    try {
+      const res = await fetch(`${API_BASE}/matches`);
+      const data = await res.json();
+      setMatches(data);
+    } catch (err) {
+      console.error("Erro ao buscar jogos", err);
+    }
+  }
+
+  const filteredMatches = matches.filter((m) => {
+    if (filter === "LIVE") return m.status === "LIVE";
+    if (filter === "SCHEDULED") return m.status === "SCHEDULED";
+    if (filter === "ESTRATEGIAS") return m.estrategias?.length > 0;
     return true;
   });
 
   return (
-    <div style={{ fontFamily:'Inter, Arial', padding:20, background:'#f4f6f9', minHeight:'100vh' }}>
-      <h1 style={{ textAlign:'center', color:'#1a73e8' }}>⚽ ScoutLay</h1>
-      <p style={{ textAlign:'center' }}>Ao vivo e próximos — sinais combinando live + histórico</p>
+    <div className="p-6 max-w-4xl mx-auto font-sans">
+      <h1 className="text-2xl font-bold mb-4">⚽ ScoutLay</h1>
 
       {/* Filtros */}
-      <div style={{ textAlign:'center', marginBottom:20 }}>
-        <button onClick={()=>setFilter('ALL')} style={filter==='ALL'?activeBtn:btn}>📊 Todos</button>
-        <button onClick={()=>setFilter('LIVE')} style={filter==='LIVE'?activeBtn:btn}>🔴 Ao Vivo</button>
-        <button onClick={()=>setFilter('SCHEDULED')} style={filter==='SCHEDULED'?activeBtn:btn}>📅 Próximos</button>
-        <button onClick={()=>setFilter('WITH_STRATEGY')} style={filter==='WITH_STRATEGY'?activeBtn:btn}>🎯 Com Estratégia</button>
+      <div className="flex gap-2 mb-6">
+        {["ALL", "LIVE", "SCHEDULED", "ESTRATEGIAS"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded ${
+              filter === f ? "bg-blue-600 text-white" : "bg-gray-200"
+            }`}
+          >
+            {f === "ALL" ? "Todos" : f === "LIVE" ? "Ao Vivo" : f === "SCHEDULED" ? "Próximos" : "Com Estratégia"}
+          </button>
+        ))}
       </div>
 
-      {loading && <div style={{ textAlign:'center' }}>Carregando partidas...</div>}
-
-      <div style={{ display:'grid', gap:20, gridTemplateColumns:'repeat(auto-fit,minmax(320px,1fr))' }}>
-        {filtered.map(m=>(
-          <div key={m.id} style={cardStyle} onClick={()=>setExpanded(expanded===m.id?null:m.id)}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div>
-                <div style={{ fontSize:18, fontWeight:700 }}>
-                  {m.homeTeam.name} <span style={{ color:'#888', fontWeight:600 }}>vs</span> {m.awayTeam.name}
-                </div>
-                <div style={{ color:'#666', marginTop:6 }}>{m.competition || ''} • {new Date(m.utcDate).toLocaleString()}</div>
-              </div>
-              <div style={{ textAlign:'right' }}>
-                {m.score?.fullTime ? <div style={{ fontSize:18, fontWeight:700 }}>{m.score.fullTime.home} - {m.score.fullTime.away}</div> : <div style={{ color:'#999' }}>{m.status}</div>}
-                <div style={{ marginTop:6 }}>{m.estrategias && m.estrategias.length>0? (m.estrategias.length+' sinais') : 'Sem sinais'}</div>
-              </div>
+      {/* Lista de jogos */}
+      <div className="grid gap-4">
+        {filteredMatches.map((m) => (
+          <div
+            key={m.id}
+            className="p-4 border rounded shadow cursor-pointer bg-white"
+            onClick={() => setExpanded(expanded === m.id ? null : m.id)}
+          >
+            <div className="flex justify-between items-center">
+              <span>
+                {m.homeTeam.name} vs {m.awayTeam.name}
+              </span>
+              <span>
+                {m.score.fullTime.home} - {m.score.fullTime.away}
+              </span>
             </div>
+            <p className="text-sm text-gray-500">
+              {m.status === "LIVE"
+                ? `🔴 Ao Vivo — ${m.liveStats.minute}'`
+                : m.status === "SCHEDULED"
+                ? `⏳ Agendado para ${new Date(m.utcDate).toLocaleString()}`
+                : m.status}
+            </p>
 
-            {expanded===m.id && <MatchDetails match={m} />}
+            {expanded === m.id && (
+              <div className="mt-4 text-sm">
+                <h3 className="font-semibold mb-2">📊 Estatísticas ao vivo</h3>
+                <ul className="mb-4">
+                  <li>Minuto: {m.liveStats.minute}'</li>
+                  <li>Total de gols: {m.liveStats.goalsTotal}</li>
+                  {m.liveStats.lastGoalTime && <li>Último gol: {m.liveStats.lastGoalTime}'</li>}
+                </ul>
+
+                <h3 className="font-semibold mb-2">📈 Estatísticas recentes</h3>
+                <ul className="mb-4">
+                  <li>Mandante (últimos 5): {m.homeStats.last5.goalsFor} gols</li>
+                  <li>Visitante (últimos 5): {m.awayStats.last5.goalsFor} gols</li>
+                </ul>
+
+                {m.estrategias?.length > 0 ? (
+                  <div>
+                    <h3 className="font-semibold mb-2">🎯 Estratégias sugeridas</h3>
+                    <ul>
+                      {m.estrategias.map((e, idx) => (
+                        <li key={idx} className="mb-1">
+                          <strong>{e.label}</strong> → {e.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="italic text-gray-500">Nenhuma estratégia sugerida.</p>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
