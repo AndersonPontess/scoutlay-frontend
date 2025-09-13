@@ -1,108 +1,118 @@
 import React, { useEffect, useState } from "react";
+import axios from "axios";
 
-const API_BASE = import.meta.env.VITE_API_BASE;
+const API_URL = "https://scoutlay-backend-wxnl.onrender.com/matches";
 
 export default function App() {
   const [matches, setMatches] = useState([]);
-  const [filter, setFilter] = useState("ALL");
-  const [expanded, setExpanded] = useState(null);
+  const [filter, setFilter] = useState("todos");
 
   useEffect(() => {
+    const fetchMatches = async () => {
+      try {
+        const response = await axios.get(API_URL);
+        setMatches(response.data.matches || []);
+      } catch (error) {
+        console.error("Erro ao buscar partidas:", error);
+      }
+    };
     fetchMatches();
-    const interval = setInterval(fetchMatches, 60000);
+
+    const interval = setInterval(fetchMatches, 60000); // atualiza a cada 1 min
     return () => clearInterval(interval);
   }, []);
 
-  async function fetchMatches() {
-    try {
-      const res = await fetch(`${API_BASE}/matches`);
-      const data = await res.json();
-      setMatches(data);
-    } catch (err) {
-      console.error("Erro ao buscar jogos", err);
-    }
-  }
+  const formatDate = (dateString) => {
+    const options = {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    };
+    return new Date(dateString).toLocaleString("pt-BR", options);
+  };
 
-  const filteredMatches = matches.filter((m) => {
-    if (filter === "LIVE") return m.status === "LIVE";
-    if (filter === "SCHEDULED") return m.status === "SCHEDULED";
-    if (filter === "ESTRATEGIAS") return m.estrategias?.length > 0;
+  const filteredMatches = matches.filter((match) => {
+    if (filter === "ao_vivo") return match.status === "LIVE" || match.status === "IN_PLAY";
+    if (filter === "proximos")
+      return match.status === "TIMED" || match.status === "SCHEDULED";
+    if (filter === "estrategia") return match.suggestedStrategy;
     return true;
   });
 
   return (
-    <div className="p-6 max-w-4xl mx-auto font-sans">
-      <h1 className="text-2xl font-bold mb-4">⚽ ScoutLay</h1>
+    <div className="p-6 max-w-6xl mx-auto">
+      <h1 className="text-4xl font-bold flex items-center gap-3 mb-6">
+        ⚽ <span>ScoutLay</span>
+      </h1>
 
-      {/* Filtros */}
-      <div className="flex gap-2 mb-6">
-        {["ALL", "LIVE", "SCHEDULED", "ESTRATEGIAS"].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded ${
-              filter === f ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-          >
-            {f === "ALL" ? "Todos" : f === "LIVE" ? "Ao Vivo" : f === "SCHEDULED" ? "Próximos" : "Com Estratégia"}
-          </button>
-        ))}
+      {/* Botões de filtro */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <button
+          onClick={() => setFilter("todos")}
+          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+        >
+          Todos
+        </button>
+        <button
+          onClick={() => setFilter("ao_vivo")}
+          className="px-4 py-2 bg-red-200 text-red-700 font-semibold rounded-lg hover:bg-red-300"
+        >
+          🔥 Ao Vivo
+        </button>
+        <button
+          onClick={() => setFilter("proximos")}
+          className="px-4 py-2 bg-green-200 text-green-700 font-semibold rounded-lg hover:bg-green-300"
+        >
+          ⏳ Próximos
+        </button>
+        <button
+          onClick={() => setFilter("estrategia")}
+          className="px-4 py-2 bg-blue-200 text-blue-700 font-semibold rounded-lg hover:bg-blue-300"
+        >
+          🎯 Com Estratégia
+        </button>
       </div>
 
-      {/* Lista de jogos */}
-      <div className="grid gap-4">
-        {filteredMatches.map((m) => (
+      {/* Lista de partidas */}
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredMatches.length === 0 && (
+          <p className="text-gray-500 text-lg">
+            Nenhuma partida encontrada no momento.
+          </p>
+        )}
+        {filteredMatches.map((match, index) => (
           <div
-            key={m.id}
-            className="p-4 border rounded shadow cursor-pointer bg-white"
-            onClick={() => setExpanded(expanded === m.id ? null : m.id)}
+            key={index}
+            className="p-5 border rounded-xl shadow-lg hover:shadow-2xl transition bg-white"
           >
-            <div className="flex justify-between items-center">
-              <span>
-                {m.homeTeam.name} vs {m.awayTeam.name}
-              </span>
-              <span>
-                {m.score.fullTime.home} - {m.score.fullTime.away}
-              </span>
-            </div>
-            <p className="text-sm text-gray-500">
-              {m.status === "LIVE"
-                ? `🔴 Ao Vivo — ${m.liveStats.minute}'`
-                : m.status === "SCHEDULED"
-                ? `⏳ Agendado para ${new Date(m.utcDate).toLocaleString()}`
-                : m.status}
+            <h2 className="text-lg font-bold mb-2">
+              {match.homeTeam?.name} <span className="text-gray-500">vs</span>{" "}
+              {match.awayTeam?.name}
+            </h2>
+            <p className="text-sm text-gray-600">
+              {match.utcDate ? formatDate(match.utcDate) : "Sem data definida"}
             </p>
 
-            {expanded === m.id && (
-              <div className="mt-4 text-sm">
-                <h3 className="font-semibold mb-2">📊 Estatísticas ao vivo</h3>
-                <ul className="mb-4">
-                  <li>Minuto: {m.liveStats.minute}'</li>
-                  <li>Total de gols: {m.liveStats.goalsTotal}</li>
-                  {m.liveStats.lastGoalTime && <li>Último gol: {m.liveStats.lastGoalTime}'</li>}
-                </ul>
+            <p
+              className={`mt-2 font-bold ${
+                match.status === "LIVE" || match.status === "IN_PLAY"
+                  ? "text-red-600"
+                  : "text-gray-700"
+              }`}
+            >
+              {match.status === "LIVE" || match.status === "IN_PLAY"
+                ? "🔥 AO VIVO"
+                : match.status === "TIMED"
+                ? "⏳ Agendado"
+                : match.status}
+            </p>
 
-                <h3 className="font-semibold mb-2">📈 Estatísticas recentes</h3>
-                <ul className="mb-4">
-                  <li>Mandante (últimos 5): {m.homeStats.last5.goalsFor} gols</li>
-                  <li>Visitante (últimos 5): {m.awayStats.last5.goalsFor} gols</li>
-                </ul>
-
-                {m.estrategias?.length > 0 ? (
-                  <div>
-                    <h3 className="font-semibold mb-2">🎯 Estratégias sugeridas</h3>
-                    <ul>
-                      {m.estrategias.map((e, idx) => (
-                        <li key={idx} className="mb-1">
-                          <strong>{e.label}</strong> → {e.reason}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <p className="italic text-gray-500">Nenhuma estratégia sugerida.</p>
-                )}
-              </div>
+            {match.suggestedStrategy && (
+              <p className="mt-3 text-sm text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                Estratégia sugerida: {match.suggestedStrategy}
+              </p>
             )}
           </div>
         ))}
@@ -110,6 +120,7 @@ export default function App() {
     </div>
   );
 }
+
 
 const btn = { margin:'0 6px', padding:'8px 14px', borderRadius:6, border:'1px solid #1a73e8', background:'#fff', color:'#1a73e8', cursor:'pointer' }
 const activeBtn = { ...btn, background:'#1a73e8', color:'#fff', fontWeight:700 }
