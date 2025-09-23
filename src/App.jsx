@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import "./App.css"; // vamos criar um CSS simples para os estilos
 
-const API_URL = "https://SEU_BACKEND.onrender.com/matches";
+const API_URL = "https://scoutlay-backend-wxnl.onrender.com/matches";
 
 function App() {
   const [matches, setMatches] = useState([]);
-  const [filter, setFilter] = useState("ALL");
+  const [filter, setFilter] = useState("all");
 
   useEffect(() => {
     const fetchMatches = async () => {
       try {
-        const response = await axios.get(API_URL);
-        setMatches(response.data.matches || []);
+        const res = await axios.get(API_URL);
+        setMatches(res.data.matches || []);
       } catch (error) {
         console.error("Erro ao buscar partidas:", error);
       }
@@ -19,65 +20,50 @@ function App() {
     fetchMatches();
   }, []);
 
-  const filteredMatches = matches.filter((m) => {
-    if (filter === "LIVE") return m.status === "LIVE" || m.status === "IN_PLAY";
-    if (filter === "UPCOMING") return m.status === "TIMED" || m.status === "SCHEDULED";
-    if (filter === "STRATEGY") return m.estrategias && m.estrategias.length > 0;
+  const filteredMatches = matches.filter((match) => {
+    if (filter === "live") return match.status === "LIVE" || match.status === "IN_PLAY";
+    if (filter === "upcoming") return match.status === "TIMED" || match.status === "SCHEDULED";
+    if (filter === "strategy") return match.strategy; // só mostra se backend enviar sugestão
     return true;
   });
 
   return (
-    <div style={{ padding: "20px", fontFamily: "Arial" }}>
-      <h1 style={{ display: "flex", alignItems: "center" }}>
-        <span style={{ fontSize: "30px", marginRight: "10px" }}>⚽</span>
-        ScoutLay
-      </h1>
+    <div className="container">
+      <h1 className="title">⚽ ScoutLay</h1>
 
-      {/* Botões de filtro */}
-      <div style={{ marginBottom: "20px" }}>
-        <button onClick={() => setFilter("ALL")}>Todos</button>
-        <button onClick={() => setFilter("LIVE")}>Ao Vivo</button>
-        <button onClick={() => setFilter("UPCOMING")}>Próximos</button>
-        <button onClick={() => setFilter("STRATEGY")}>Com Estratégia</button>
+      <div className="filters">
+        <button onClick={() => setFilter("all")}>📋 Todos</button>
+        <button onClick={() => setFilter("live")}>🔥 Ao Vivo</button>
+        <button onClick={() => setFilter("upcoming")}>⏳ Próximos</button>
+        <button onClick={() => setFilter("strategy")}>🎯 Com Estratégia</button>
       </div>
 
-      {/* Lista de partidas */}
       {filteredMatches.length === 0 ? (
-        <p>Nenhuma partida encontrada.</p>
+        <p className="empty">Nenhuma partida encontrada no momento.</p>
       ) : (
-        <div style={{ display: "grid", gap: "15px" }}>
+        <div className="matches">
           {filteredMatches.map((match) => (
             <div
               key={match.id}
-              style={{
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                padding: "15px",
-                background: "#f9f9f9",
-              }}
+              className={`match-card ${match.status.toLowerCase()}`}
             >
               <h3>
-                {match.homeTeam} vs {match.awayTeam}
+                {match.homeTeam?.name} vs {match.awayTeam?.name}
               </h3>
+              <p>📅 {new Date(match.utcDate).toLocaleString()}</p>
               <p>
-                <b>Status:</b> {match.status}
-              </p>
-              <p>
-                <b>Data/Hora:</b>{" "}
-                {new Date(match.utcDate).toLocaleString("pt-BR", {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                })}
+                {match.status === "LIVE" || match.status === "IN_PLAY"
+                  ? "🔴 AO VIVO"
+                  : match.status === "FINISHED"
+                  ? "✅ Finalizado"
+                  : "⏳ Agendado"}
               </p>
 
-              {match.estrategias && match.estrategias.length > 0 && (
-                <div style={{ marginTop: "10px" }}>
-                  <b>📊 Estratégias sugeridas:</b>
-                  <ul>
-                    {match.estrategias.map((e, i) => (
-                      <li key={i}>{e}</li>
-                    ))}
-                  </ul>
+              {/* Estratégia sugerida pelo backend */}
+              {match.strategy && (
+                <div className="strategy">
+                  <strong>🎯 Estratégia:</strong> {match.strategy.name}
+                  <p>{match.strategy.reason}</p>
                 </div>
               )}
             </div>
