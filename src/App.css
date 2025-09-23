@@ -1,0 +1,73 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.title {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.filters {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.filters button {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #f0f0f0;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+.filters button:hover {
+  background: #ddd;
+}
+
+.matches {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.match-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.match-card.live {
+  border-left: 6px solid red;
+}
+
+.match-card.scheduled,
+.match-card.timed {
+  border-left: 6px solid orange;
+}
+
+.match-card.finished {
+  border-left: 6px solid green;
+  opacity: 0.8;
+}
+
+.strategy {
+  margin-top: 10px;
+  padding: 10px;
+  background: #f9f9f9;
+  border-left: 4px solid blue;
+  border-radius: 4px;
+}
+.empty {
+  text-align: center;
+  font-size: 16px;
+  margin-top: 30px;
+}
